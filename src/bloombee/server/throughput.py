@@ -18,6 +18,13 @@ from bloombee.utils.convert_block import QuantType, convert_block
 from bloombee.utils.disk_cache import DEFAULT_CACHE_DIR
 from bloombee.utils.misc import DUMMY_KEY_PAST
 
+from bloombee.flexgen_utils.ExecutionEnv import ExecutionEnv
+from bloombee.flexgen_utils.compression import CompressionConfig
+from bloombee.flexgen_utils.policy import Policy
+from bloombee.flexgen_utils.pytorch_backend import fix_recursive_import
+from bloombee.flexgen_utils.utils import ValueHolder, array_1d
+
+
 logger = get_logger(__name__)
 
 try:
@@ -39,6 +46,10 @@ def get_server_throughput(
     config: PretrainedConfig,
     device: torch.device,
     dtype: Union[str, torch.dtype],
+    env: ExecutionEnv,########
+    policy: Policy,########
+    weight_home: array_1d,########
+    path: str, ########
     *,
     num_blocks: int,
     quant_type: QuantType,
@@ -81,7 +92,7 @@ def get_server_throughput(
 
         if cache_key not in cache:
             cache[cache_key] = measure_throughput_info(
-                config, device, dtype, quant_type=quant_type, tensor_parallel_devices=tensor_parallel_devices
+                config, device, dtype, env, policy,weight_home,path, quant_type=quant_type, tensor_parallel_devices=tensor_parallel_devices
             )
 
             try:
@@ -112,6 +123,10 @@ def measure_throughput_info(
     config: PretrainedConfig,
     device: torch.device,
     dtype: torch.dtype,
+    env: ExecutionEnv, ####
+    policy: Policy, ####
+    weight_home: array_1d, ####
+    path : str, ####
     *,
     quant_type: QuantType,
     tensor_parallel_devices: Sequence[torch.device],
@@ -124,6 +139,10 @@ def measure_throughput_info(
             config,
             device,
             dtype,
+            env,  #####
+            policy, #####
+            weight_home, #####,
+            path, ####
             quant_type=quant_type,
             tensor_parallel_devices=tensor_parallel_devices,
             n_tokens=1,
@@ -134,6 +153,10 @@ def measure_throughput_info(
             config,
             device,
             dtype,
+            env,  #####
+            policy, #####
+            weight_home, #####
+            path, ####
             quant_type=quant_type,
             tensor_parallel_devices=tensor_parallel_devices,
             n_tokens=1024,
@@ -191,6 +214,10 @@ def measure_compute_rps(
     config: PretrainedConfig,
     device: torch.device,
     dtype: torch.dtype,
+    env: ExecutionEnv,  #####
+    policy: Policy, #####
+    weight_home:array_1d, #####
+    path: str, #####
     *,
     quant_type: QuantType,
     tensor_parallel_devices: Sequence[torch.device],
@@ -202,25 +229,32 @@ def measure_compute_rps(
     if not tensor_parallel_devices:
         tensor_parallel_devices = (device,)
     with torch.inference_mode():
-        block = get_model_block(config)
-        block = block.to(dtype)
-        block = convert_block(block, 0, config, tensor_parallel_devices, device, quant_type=quant_type, freeze=True)
+        block = get_model_block(config, env, policy, weight_home, path) #####
 
+        block = block.to(dtype)
+        # hack
+        # tensor_parallel_devices = tensor_parallel_devices + (torch.device("cuda", index=1),)
+
+        block = convert_block(block, 0, config, tensor_parallel_devices, device, quant_type=quant_type, freeze=True)
+        # import pdb;pdb.set_trace()
         cache = (DUMMY_KEY_PAST.to(dtype=dtype, device=device), DUMMY_KEY_PAST.to(dtype=dtype, device=device))
         elapsed = 0
         dummy_input = torch.randn(1, n_tokens, config.hidden_size, device=device, dtype=dtype)
-
+        
+        print('measure_compute_rps: dummy_input', dummy_input)
+        print('measure_compute_rps: dummy_input.shape', dummy_input.shape)
         # Skip the 1st step to exclude the initialization time
         def step(cache_):
+            print('step cache_ block', block)
             outputs = block.forward(dummy_input, use_cache=inference, layer_past=cache_ if inference else None)
             return outputs[1] if inference else None
 
-        cache = step(cache)
+        # cache = step(cache)
         synchronize(device)
 
         start_time = time.perf_counter()
-        for _ in range(n_steps):
-            cache = step(cache)
+        # for _ in range(n_steps):
+        #     cache = step(cache)
         synchronize(device)
         elapsed = time.perf_counter() - start_time
         device_rps = n_steps * n_tokens / elapsed
