@@ -27,6 +27,8 @@ general_copy_compressed = TorchCompressedDevice = None
 global_cpu_device = None
 global_disk_device = None
 
+import logging
+logger = logging.getLogger(__name__)
 
 def fix_recursive_import():
     global general_copy_compressed, TorchCompressedDevice, global_cpu_device
@@ -191,6 +193,7 @@ class TorchTensor:
         if self.device.device_type == DeviceType.DISK:
             shutil.copy(filename, self.data)
         else:
+            # print(f"Loading tensor from np file {filename} to {self.name}")
             self.load_from_np(np.load(filename))
     ##############################################################  
     def load_from_state(self, param):
@@ -647,6 +650,14 @@ class TorchDevice:
 
         idx = torch.arange(q_len, device=self.dev)
         causal_mask = (idx <= idx.view(q_len, 1)).view(1, 1, q_len, q_len) 
+        
+        # Debug attention_mask shape
+        logger.info(f"attention_mask.data.shape: {attention_mask.data.shape}, expected: ({bsz}, {q_len})")
+
+        # Ensure attention_mask has the correct shape
+        if attention_mask.data.numel() == 1:
+            attention_mask = torch.ones((bsz, q_len), dtype=attention_mask.data.dtype, device=attention_mask.data.device)
+
         # causal_mask.shape should be torch.Size([1, 1, 1, 1])
         # 1 is the length of inputs.ids
         # if the length of inputs is 8, the causal_mask.shape should be torch.Size([1, 1, 8, 8])

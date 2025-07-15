@@ -173,7 +173,7 @@ def download_llama_weights(model_name, path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="llama-7b")
-    parser.add_argument("--path", type=str, default="/tmp/data/llama_weights")
+    parser.add_argument("--path", type=str, default="/mnt/myvolume/tmp/data/llama_weights")
     args = parser.parse_args()
 
     download_llama_weights(args.model, args.path)

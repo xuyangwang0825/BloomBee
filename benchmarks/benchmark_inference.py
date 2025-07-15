@@ -53,17 +53,23 @@ def benchmark_inference(process_idx, args, result_pipe):
 
     result = ""
     step_times = []
-    with model.transformer.h.inference_session(max_length=args.seq_len) as sess:
+
+    prompt = "What are the advantages of decentralized AI models?"
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
+
+    with model.transformer.h.inference_session(max_length=100) as sess:
         for step in range(args.seq_len):
             start_time = perf_counter()
 
-            outputs = model.generate(max_new_tokens=1, session=sess)
+            outputs = model.generate(input_ids, max_new_tokens=10, session=sess)
             result += tokenizer.decode(outputs[0])
 
-            if step >= args.warmup_steps:
-                step_times.append(perf_counter() - start_time)
-                speed = 1 / np.mean(step_times)
-                logger.info(f"{process_idx=} {step=} {speed=:.2f}")
+            # if step >= args.warmup_steps:
+            step_times.append(perf_counter() - start_time)
+            speed = 1 / np.mean(step_times)
+            logger.info(f"{process_idx=} {step=} {speed=:.2f}")
+
+    print("the result is:", result)  # Print the first 1000 characters of the result
 
     result_pipe.send(speed)
 

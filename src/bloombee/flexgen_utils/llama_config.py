@@ -160,7 +160,7 @@ def download_llama_weights(model_name, path):
     os.makedirs(path, exist_ok=True)
 
     for bin_file in tqdm(bin_files, desc="Convert format"):
-        state = torch.load(bin_file)
+        state = torch.load(bin_file, weights_only=True)
         for name, param in tqdm(state.items(), leave=False):
             name = name.replace("model.", "")
             name = name.replace("final_layer_norm", "layer_norm")
@@ -172,7 +172,7 @@ def download_llama_weights(model_name, path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="llama-7b")
-    parser.add_argument("--path", type=str, default="/tmp/data/llama_weights")
+    parser.add_argument("--path", type=str, default="/mnt/myvolume/tmp/data/llama_weights")
     args = parser.parse_args()
 
     download_llama_weights(args.model, args.path)

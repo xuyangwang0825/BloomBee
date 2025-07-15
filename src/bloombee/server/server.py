@@ -272,7 +272,7 @@ class Server:
                         num_bits=4, group_size=64,
                         group_dim=2, symmetric=False))
         self.weight_home = array_1d(self.num_blocks, ValueHolder)
-        self.path = '/tmp/data/llama_weights'
+        self.path = '/mnt/myvolume/tmp/data/llama_weights'
         ##############################################################
         
         see_memory_usage("-----------------------------------------in server: after policy  ")

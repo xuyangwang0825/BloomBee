@@ -1524,10 +1524,10 @@ def run_flexgen(args):
 def add_parser_arguments(parser):
     parser.add_argument("--model", type=str, default="huggyllama/llama-7b",
         help="The model name.")
-    parser.add_argument("--path", type=str, default="/tmp/data/llama_weights",
+    parser.add_argument("--path", type=str, default="/mnt/myvolume/tmp/data/llama_weights",
         help="The path to the model weights. If there are no cached weights, "
              "FlexGen will automatically download them from HuggingFace.")
-    parser.add_argument("--offload-dir", type=str, default="/tmp/data/flexgen_offload_dir",
+    parser.add_argument("--offload-dir", type=str, default="/mnt/myvolume/tmp/data/flexgen_offload_dir",
         help="The directory to offload tensors. ")
     parser.add_argument("--prompt-len", type=int, default=2048)
     parser.add_argument("--gen-len", type=int, default=32)
