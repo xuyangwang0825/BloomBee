@@ -53,23 +53,56 @@ def benchmark_inference(process_idx, args, result_pipe):
 
     result = ""
     step_times = []
+    
+    logger.info(f"🔍 [Process {process_idx}] BOS token id: {tokenizer.bos_token_id}")
+    logger.info(f"🔍 [Process {process_idx}] Starting inference session...")
 
     prompt = "What are the advantages of decentralized AI models?"
     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
-
-    with model.transformer.h.inference_session(max_length=100) as sess:
+    
+    with model.transformer.h.inference_session(max_length=args.seq_len) as sess:
         for step in range(args.seq_len):
             start_time = perf_counter()
 
+            logger.info(f"🔍 [Process {process_idx}] Step {step} - Before generation:")
+            logger.info(f"🔍 [Process {process_idx}] Current result length: {len(result)}")
+            logger.info(f"🔍 [Process {process_idx}] Current result text: {repr(result)}")
+
             outputs = model.generate(input_ids, max_new_tokens=10, session=sess)
+            
+
+            logger.info(f"🔍 [Process {process_idx}] Step {step} - After generation:")
+            logger.info(f"🔍 [Process {process_idx}] Generated outputs shape: {outputs.shape}")
+            logger.info(f"🔍 [Process {process_idx}] Generated outputs: {outputs}")
+            logger.info(f"🔍 [Process {process_idx}] Full sequence: {outputs[0]}")
+            
+   
+            new_token_id = outputs[0][-1].item()  
+            logger.info(f"🔍 [Process {process_idx}] New token id: {new_token_id}")
+            
+
+            new_token_text = tokenizer.decode([new_token_id])
+            logger.info(f"🔍 [Process {process_idx}] New token text: {repr(new_token_text)}")
+            
+
+            full_decoded = tokenizer.decode(outputs[0])
+            logger.info(f"🔍 [Process {process_idx}] Full decoded text: {repr(full_decoded)}")
+            
             result += tokenizer.decode(outputs[0])
+
+
+            logger.info(f"🔍 [Process {process_idx}] Updated result: {repr(result)}")
+            logger.info(f"🔍 [Process {process_idx}] Updated result length: {len(result)}")
 
             # if step >= args.warmup_steps:
             step_times.append(perf_counter() - start_time)
             speed = 1 / np.mean(step_times)
             logger.info(f"{process_idx=} {step=} {speed=:.2f}")
-
-    print("the result is:", result)  # Print the first 1000 characters of the result
+                
+            logger.info(f"🔍 [Process {process_idx}] Step {step} completed\n" + "="*50)
+            
+    logger.info(f"Generated text (process {process_idx}): {repr(result)}")
+    logger.info(f"Generated text length: {len(result)} characters")
 
     result_pipe.send(speed)
 
